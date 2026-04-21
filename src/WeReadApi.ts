@@ -14,6 +14,8 @@ const WEREAD_REVIEW_LIST_URL = "https://weread.qq.com/web/review/list";
 const WEREAD_READ_INFO_URL = "https://weread.qq.com/web/book/getProgress";
 const WEREAD_SHELF_SYNC_URL = "https://weread.qq.com/web/shelf/sync";
 const WEREAD_BEST_REVIEW_URL = "https://weread.qq.com/web/review/list/best";
+const WEREAD_BOOKLISTS_URL = "https://i.weread.qq.com/booklists";
+const WEREAD_BOOKLIST_SINGLE_URL = "https://i.weread.qq.com/booklist/single";
 
 interface ChapterInfo {
   chapterUid: number;
@@ -421,6 +423,97 @@ export class WeReadApi {
       });
       
       return data;
+    });
+  }
+
+  // 从cookie中提取vid和skey
+  private extractVidAndSkey(): { vid: string; skey: string } {
+    let vid = '';
+    let skey = '';
+    const vidMatch = this.cookie.match(/wr_vid=([^;]+)/);
+    const skeyMatch = this.cookie.match(/wr_skey=([^;]+)/);
+    if (vidMatch) vid = vidMatch[1];
+    if (skeyMatch) skey = skeyMatch[1];
+    return { vid, skey };
+  }
+
+  // 调用 i.weread.qq.com 的接口（移动端API）
+  private async makeMobileApiRequest<T>(
+    url: string,
+    params: Record<string, any> = {}
+  ): Promise<T> {
+    await this.ensureInitialized();
+    const { vid, skey } = this.extractVidAndSkey();
+    const headers: Record<string, string> = {
+      'Cookie': this.cookie,
+      'Host': 'i.weread.qq.com',
+      'Accept': '*/*',
+      'Accept-Language': 'zh-Hans-CN;q=1',
+      'channelId': 'AppStore',
+      'basever': '10.1.0.80',
+      'v': '10.1.0.80',
+      'User-Agent': 'WeRead/10.1.0 (iPhone; iOS 26.4.1; Scale/3.00)'
+    };
+    if (vid) headers['vid'] = vid;
+    if (skey) headers['skey'] = skey;
+
+    try {
+      const response = await axios.get(url, {
+        params,
+        headers,
+        timeout: 60000
+      });
+      const data = response.data;
+      if (data && data.errcode !== undefined && data.errcode !== 0) {
+        this.handleErrcode(data.errcode);
+        throw new Error(`API返回错误: ${data.errmsg || 'Unknown error'} (code: ${data.errcode})`);
+      }
+      return data;
+    } catch (error: any) {
+      console.error(`移动端API请求失败 (${url}):`, error.message);
+      if (error.response) {
+        console.error(`响应状态: ${error.response.status}`);
+      }
+      throw error;
+    }
+  }
+
+  // 获取用户创建的书单列表
+  public async getBooklists(
+    count: number = 500,
+    countPerBooklist: number = 4,
+    type: number = 4,
+    synckey: number = 0,
+    userVid?: string
+  ): Promise<any> {
+    await this.ensureInitialized();
+    return this.retry(async () => {
+      const { vid } = this.extractVidAndSkey();
+      const finalUserVid = userVid || vid;
+      if (!finalUserVid) {
+        throw new Error("无法获取userVid，请确保cookie中包含wr_vid或显式传入userVid");
+      }
+      const params: Record<string, any> = {
+        count,
+        countPerBooklist,
+        source: 'prefetch',
+        synckey,
+        type,
+        userVid: finalUserVid
+      };
+      return await this.makeMobileApiRequest<any>(WEREAD_BOOKLISTS_URL, params);
+    });
+  }
+
+  // 获取某个书单的具体内容
+  public async getBooklistDetail(booklistId: string, synckey: number = 0): Promise<any> {
+    await this.ensureInitialized();
+    return this.retry(async () => {
+      const params: Record<string, any> = {
+        booklistId,
+        synckey
+      };
+      return await this.makeMobileApiRequest<any>(WEREAD_BOOKLIST_SINGLE_URL, params);
     });
   }
 
