@@ -148,6 +148,59 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["book_id"]
         }
       },
+      {
+        name: "get_booklists",
+        description: "Get the user's created booklists (书单) with summary information",
+        inputSchema: {
+          type: "object",
+          properties: {
+            count: {
+              type: "integer",
+              description: "Maximum number of booklists to return",
+              default: 500
+            },
+            count_per_booklist: {
+              type: "integer",
+              description: "Number of preview books per booklist",
+              default: 4
+            },
+            type: {
+              type: "integer",
+              description: "Booklist type (4 = user created)",
+              default: 4
+            },
+            synckey: {
+              type: "integer",
+              description: "Sync key for incremental updates, default 0",
+              default: 0
+            },
+            user_vid: {
+              type: "string",
+              description: "User vid; defaults to current logged-in user extracted from cookie"
+            }
+          },
+          required: []
+        }
+      },
+      {
+        name: "get_booklist_detail",
+        description: "Get the full content (all books) of a specific booklist by booklistId",
+        inputSchema: {
+          type: "object",
+          properties: {
+            booklist_id: {
+              type: "string",
+              description: "Booklist ID, e.g. '5508184_85PpzfhBv'"
+            },
+            synckey: {
+              type: "integer",
+              description: "Sync key for incremental updates, default 0",
+              default: 0
+            }
+          },
+          required: ["booklist_id"]
+        }
+      },
     ]
   };
 });
@@ -849,6 +902,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               sync_key: syncKey,
               reviews: processedReviews
             }, null, 2)
+          }]
+        };
+      }
+
+      // 获取用户创建的书单列表
+      case "get_booklists": {
+        const count = Number(request.params.arguments?.count ?? 500);
+        const countPerBooklist = Number(request.params.arguments?.count_per_booklist ?? 4);
+        const type = Number(request.params.arguments?.type ?? 4);
+        const synckey = Number(request.params.arguments?.synckey ?? 0);
+        const userVid = request.params.arguments?.user_vid
+          ? String(request.params.arguments.user_vid)
+          : undefined;
+
+        const data = await wereadApi.getBooklists(count, countPerBooklist, type, synckey, userVid);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(data, null, 2)
+          }]
+        };
+      }
+
+      // 获取某个书单的具体内容
+      case "get_booklist_detail": {
+        const booklistId = String(request.params.arguments?.booklist_id || "");
+        const synckey = Number(request.params.arguments?.synckey ?? 0);
+        if (!booklistId) {
+          throw new Error("booklist_id 不能为空");
+        }
+        const data = await wereadApi.getBooklistDetail(booklistId, synckey);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(data, null, 2)
           }]
         };
       }
