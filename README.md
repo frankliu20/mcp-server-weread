@@ -10,9 +10,8 @@
 </p>
 
 > 🪐 This is a community-maintained variant of the original
-> [`freestylefly/mcp-server-weread`](https://github.com/freestylefly/mcp-server-weread) by [@苍何 (canghe)](https://github.com/freestylefly).
-> Distributed under the **MIT License** (preserved as-is). All credit for the original
-> WeRead MCP design and implementation goes to the upstream author.
+> [`freestylefly/mcp-server-weread`](https://github.com/freestylefly/mcp-server-weread).
+> Distributed under the **MIT License** (preserved as-is).
 
 ---
 
@@ -114,6 +113,3 @@ Added in this variant:
 ## 📜 License
 
 MIT — see [`LICENSE`](./LICENSE).
-
-Original copyright © 2025 [@苍何 (canghe)](https://github.com/freestylefly).
-Modifications © 2025–2026 frankliu20.
